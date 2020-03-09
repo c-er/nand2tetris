@@ -1,0 +1,53 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/03/a/PC.hdl
+
+/**
+ * A 16-bit counter with load and reset control bits.
+ * if      (reset[t] == 1) out[t+1] = 0
+ * else if (load[t] == 1)  out[t+1] = in[t]
+ * else if (inc[t] == 1)   out[t+1] = out[t] + 1  (integer addition)
+ * else                    out[t+1] = out[t]
+ */
+
+CHIP PC {
+    IN in[16],load,inc,reset;
+    OUT out[16];
+
+    PARTS:
+    // if-else cascading
+    Not(in=reset, out=notreset);
+    Not(in=load, out=notload);
+    Not(in=inc, out=notinc);
+
+    // if not reset and load, then actually load
+    And(a=notreset, b=load, out=load0);
+
+    // if not reset and not load and inc, then actually inc
+    And(a=notreset, b=notload, out=notresetload);
+    And(a=notresetload, b=inc, out=inc0);
+
+    // if not inc AND not load AND not inc, then nothing
+    And(a=notresetload, b=notinc, out=nothing);
+
+    // exactly one of reset, load0, inc0, nothing are set, so just
+    // regular ifs via muxes now
+
+    // if reset[t] == 1, set regin to 0
+    Mux16(a=in, b=false, sel=reset, out=regin0);
+
+    // if load[t] == 1, set regin to in
+    Mux16(a=regin0, b=in, sel=load0, out=regin1);
+
+    // if inc[t] == 1, set regin to out[t] + 1
+    Inc16(in=regout, out=regoutinc);
+    Mux16(a=regin1, b=regoutinc, sel=inc0, out=regin2);
+
+    // if nothing == 1, set regload to 0 (else its 1)
+    Mux(a=true, b=false, sel=nothing, out=regload);
+
+    Register(in=regin2, load=regload, out=regout);
+
+    And16(a=regout, b=regout, out=out);
+}
